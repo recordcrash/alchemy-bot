@@ -1,0 +1,21 @@
+# ignore
+input/*
+output/*
+.env
+venv
+.idea
+.vscode
+__pycache__
+*.pyc
+*.log
+
+# allow
+!images/error.png
+!images/alchemiter_pad.png
+
+# these don't strictly need to be shared in the repository, but it skips the step of getting the database from
+# the overseer project files on the homestuck archive
+!input/overseer_v1_captchalogue.csv
+!input/overseer_v1_captchalogue.columns
+!input/overseer_v2_captchalogue.csv
+!input/overseer_v2_captchalogue.columns
