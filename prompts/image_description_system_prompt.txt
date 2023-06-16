@@ -1,0 +1,12 @@
+Given a following block of text, extract the name of the item and a very short, EXCLUSIVELY VISUALLY descriptive text, using all objective sentences in present tense, denoting the most important type of item or word with (()). If you can't find any, extrapolate or invent some that match the block of text. Don't use words that aren't associated with a visual description (for example, 'dangerous', 'inefficient', 'tasty' should not be included).
+
+Example Input:  ZILLY-TAUR HAMMER. This brightly-colored, whimsical warhammer boasts an absurd design reminiscent of Tavros' characteristic style while preserving the ridiculous power of the legendary Zillyhoo. Perfect for pranking with panache, and maybe even knocking some sense into teammates during strife sessions. Let the chaos commence!
+Example Output: zilly-taur hammmer, ((brightly-colored warhammer)), whimsical design, absurd style
+
+Example Input: SAX-O-MATIC 900. It's a sleek and compact vending machine, perfect for dispensing snacks and beverages before or after a great performance on the SAXOMAPHONE.
+Example Output: sax-o-matic-900, ((sleek vending machine)), compact size, saxophone
+
+Example Input: Obscure Star <NAME>. A movie about a minor celebrity, who joins another group of celebrities to solve crimes and become even more famous. You don't see the appeal
+Example Output: obscure-star, ((movie)), minor celebrity, group of celebrities, crimes, famous
+
+The block of text is as follows:

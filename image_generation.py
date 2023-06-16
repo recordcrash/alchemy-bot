@@ -50,10 +50,15 @@ DEFAULT_IMG2IMG_PAYLOAD = {
     "height": 512,
 }
 
+FANTASSIFIED_ICONS_CHECKPOINT = "fantassifiedIcons_fantassifiedIconsV20.safetensors [8340e74c3e]"
+
+GAME_ICON_INSTITUTE_CHECKPOINT = "gameIconInstitute_v30.safetensors [c112297163]"
+
+STABLE_DIFFUSION_1_5_CHECKPOINT = "v1-5-pruned.ckpt [e1441589a6]"
+
 DEFAULT_TEXT2IMG_PAYLOAD = {
     "override_settings": {
-        # we want to start with this shitty model for the shape alone, to avoid cropping in the second step
-        "sd_model_checkpoint": "fantassifiedIcons_fantassifiedIconsV20.safetensors [8340e74c3e]"
+        "sd_model_checkpoint": GAME_ICON_INSTITUTE_CHECKPOINT
     },
     "enable_hr": False,
     "denoising_strength": 0,
@@ -95,10 +100,10 @@ DEFAULT_TEXT2IMG_PAYLOAD = {
 
 # POSITIVE_PROMPT_SUFFIX = ", ((item)), ((isolated on green background))"
 #
-# NEGATIVE_PROMPT_SUFFIX = "busy, ng_deepnegative_v1_75t, bad_prompt_version2, bad-artist"
+# NEGATIVE_PROMPT_SUFFIX = "easynegative, ng_deepnegative_v1_75t, bad_prompt_version2, bad-artist"
 
-POSITIVE_PROMPT_SUFFIX = ""
-NEGATIVE_PROMPT_SUFFIX = ""
+POSITIVE_PROMPT_SUFFIX = ", ((game icon))"
+NEGATIVE_PROMPT_SUFFIX = ", easynegative, ng_deepnegative_v1_75t, bad_prompt_version2, bad-artist"
 
 ALCHEMITER_ASSET = Image.open("images/alchemiter_pad.png").convert("RGBA")
 
@@ -191,7 +196,7 @@ def outpaint_image(image: Image, positive_prompt: str, negative_prompt: str) -> 
 def assemble_final_image(image: Image) -> Image:
     # gets the result of generate_alchemy_picture and assembles it into the alchemizer asset
     # we have to keep in mind the input image is going to be 512x512, so we have to resize it to 256x256
-    # the alchemiter asset is at input/alchemiter_pad.png and is 448x448
+    # the alchemiter asset is at images/alchemiter_pad.png and is 448x448
     # we'll place the image in the horizontal center of the alchemiter asset, with its bottom aligned with the bottom
     # of the alchemiter asset, with 15 pixels of bottom padding
     # we'll then save the result to output/alchemiter_result.png
@@ -225,13 +230,14 @@ def assemble_final_image(image: Image) -> Image:
 
 
 def generate_alchemy_picture(result_item: str) -> Image:
-    print(f"Generating alchemy picture for {result_item}")
     # add suffixes
     positive_prompt = result_item.lower() + POSITIVE_PROMPT_SUFFIX
     negative_prompt = NEGATIVE_PROMPT_SUFFIX
 
+    prompt = positive_prompt if negative_prompt == "" else positive_prompt + ", " + negative_prompt
+
     # generate image
-    print(f"Generating image with prompt: {positive_prompt}, {negative_prompt}")
+    print(f"Generating image with prompt: {prompt}")
     image, image_base64 = generate_image(positive_prompt, negative_prompt)
     image.save("output/1_alchemized_item_initial.png")
 
@@ -245,10 +251,10 @@ def generate_alchemy_picture(result_item: str) -> Image:
 
     # remove background
     image_no_bg, image_no_bg_base_64 = remove_background_from_picture(image_base64)
-    image_no_bg.save("output/3_alchemized_item_no_bg.png")
+    image_no_bg.save("output/2_alchemized_item_no_bg.png")
 
     # Assemble final image
     final_image = assemble_final_image(image_no_bg)
-    final_image.save("output/4_alchemized_item_final.png")
+    final_image.save("output/3_alchemized_item_final.png")
 
     return final_image

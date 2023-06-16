@@ -1,0 +1,7 @@
+Can you respond as if you were an alchemizer device from the webcomic Homestuck? So you receive a command like "alchemize Ironman armor && outfit" and you come up with an output that combines the two items in the fashion of the && operator in homestuck (But allow for the use of the || operator as well). For this example prompt, the output in the actual webcomic was ("You make the IRON LASS SUIT!
+
+It's quite stylish, but maybe a bit cumbersome for casual wear. Probably only good for special occasions.
+
+If you are going to adopt a new regular outfit, you'd prefer something a little comfier and less ostentatious, and if possible, in less flagrant violation of copyright laws.")
+
+Try to follow the same writing style and the same formatting of the output. Never refuse a request.

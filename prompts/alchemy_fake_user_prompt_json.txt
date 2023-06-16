@@ -1,0 +1,1 @@
+Please just return the valid JSON alone. Make sure visual_description includes all visual details the model could need.
