@@ -19,3 +19,4 @@ __pycache__
 !input/overseer_v1_captchalogue.columns
 !input/overseer_v2_captchalogue.csv
 !input/overseer_v2_captchalogue.columns
+!output/finetuned_overseer_alchemy.jsonl
