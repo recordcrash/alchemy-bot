@@ -6,7 +6,8 @@
 
 import os
 
-import openai
+from openai import OpenAI
+
 from dotenv import load_dotenv
 from tenacity import (
     retry,
@@ -22,24 +23,36 @@ BASE_TEMPERATURE = float(os.getenv("BASE_TEMPERATURE"))
 
 CHEAP_CHAT_MODEL_NAME = 'gpt-3.5-turbo'
 
-EXPENSIVE_CHAT_MODEL_NAME = 'gpt-4'
+EXPENSIVE_CHAT_MODEL_NAME = 'gpt-4-1106-preview'
+# EXPENSIVE_CHAT_MODEL_NAME = 'gpt-4'
 
 
 # Queries a chatGPT model with messages using OpenAI's api
-async def query_chat_model(messages: list, chat_model_name: str, temperature: float = BASE_TEMPERATURE):
-    response = await query_openai_chatgpt_model_with_backoff(
-        model=chat_model_name,
-        messages=messages,
-        temperature=temperature,
-    )
+async def query_chat_model(client, messages: list, chat_model_name: str, temperature: float = BASE_TEMPERATURE):
+    if chat_model_name == 'gpt-4-1106-preview':
+        response = await query_openai_chatgpt_model_with_backoff(
+            client=client,
+            model=chat_model_name,
+            messages=messages,
+            temperature=temperature,
+            response_format={"type": "json_object"}
+        )
+    else:
+        response = await query_openai_chatgpt_model_with_backoff(
+            client=client,
+            model=chat_model_name,
+            messages=messages,
+            temperature=temperature,
+        )
     # get the first result
     text = response.choices[0].message.content
     return text
 
 
 # Directly queries the finetuned model using OpenAI's api
-async def query_finetuned_openai_model(prompt_with_items: str, temperature: float = BASE_TEMPERATURE):
+async def query_finetuned_openai_model(client, prompt_with_items: str, temperature: float = BASE_TEMPERATURE):
     response = await query_openai_model_with_backoff(
+        client=client,
         model=FINETUNED_MODEL_NAME,
         prompt=prompt_with_items,
         max_tokens=500,
@@ -55,14 +68,14 @@ async def query_finetuned_openai_model(prompt_with_items: str, temperature: floa
 
 # API methods
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
-async def query_openai_model_with_backoff(**kwargs):
-    response = await openai.Completion.acreate(**kwargs)
+async def query_openai_model_with_backoff(client, **kwargs):
+    response = await client.completions.create(**kwargs)
     return response
 
 
 @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
-async def query_openai_chatgpt_model_with_backoff(**kwargs):
-    response = await openai.ChatCompletion.acreate(**kwargs)
+async def query_openai_chatgpt_model_with_backoff(client, **kwargs):
+    response = await client.chat.completions.create(**kwargs)
     return response
 
 

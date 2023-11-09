@@ -4,7 +4,8 @@ import json
 import os
 
 import discord
-import openai
+from openai import AsyncOpenAI as OpenAI
+
 from dotenv import load_dotenv
 from titlecase import titlecase
 
@@ -26,6 +27,8 @@ channel_ids: list = []
 
 temperature: float = 1.0
 
+openai_client = None
+
 discord_messages_by_id = {}  # Stores an object/map of discord.py messages sent to the bot by messsage id
 
 ALCHEMIZE_COMMAND = "D--> alchemize"
@@ -42,27 +45,27 @@ ALCHEMY_FAKE_USER_PROMPT = open("prompts/alchemy_fake_user_prompt_json.txt", "r"
 
 
 def load_environment_variables():
-    global admin_ids, temperature, ignoreplebs_mode, channel_ids
+    global admin_ids, temperature, ignoreplebs_mode, channel_ids, openai_client
     admin_ids_string_list = os.getenv("ADMIN_IDS").split(",")
     channel_ids_string_list = os.getenv("CHANNEL_IDS").split(",")
     channel_ids = [int(channel_id) for channel_id in channel_ids_string_list]
     admin_ids = [int(admin_id) for admin_id in admin_ids_string_list]
     temperature = BASE_TEMPERATURE
+    openai_client = OpenAI(api_key=os.getenv("OPENAI_KEY"))
     ignoreplebs_mode = os.getenv("DEFAULT_IGNORE_PLEBS") in ["True", "true"]
-    openai.api_key = os.getenv("OPENAI_KEY")
     print(f"Loaded environment variables.")
 
 
 def get_alchemy_result(item_1_name: str, item_2_name: str, op: str, model_name: str):
-    global temperature
+    global temperature, openai_client
     promptable_text = f"{item_1_name} {op} {item_2_name}"
     messages = get_alchemy_messages(promptable_text)
     if model_name == CHEAP_CHAT_MODEL_NAME:
-        response = query_chat_model(messages, CHEAP_CHAT_MODEL_NAME, temperature=temperature)
+        response = query_chat_model(openai_client, messages, CHEAP_CHAT_MODEL_NAME, temperature=temperature)
     elif model_name == EXPENSIVE_CHAT_MODEL_NAME:
-        response = query_chat_model(messages, EXPENSIVE_CHAT_MODEL_NAME, temperature=temperature)
+        response = query_chat_model(openai_client, messages, EXPENSIVE_CHAT_MODEL_NAME, temperature=temperature)
     else:
-        response = query_finetuned_openai_model(request_text_to_prompt(promptable_text), temperature=temperature)
+        response = query_finetuned_openai_model(openai_client, request_text_to_prompt(promptable_text), temperature=temperature)
     return response
 
 
@@ -92,11 +95,11 @@ def get_image_item_name(item_name: str, model_name: str):
 
 
 def get_image_description(item_name: str, item_description: str):
-    global temperature
+    global temperature, openai_client
     print(f"Getting image description for {item_name} with description {item_description}")
     promptable_text = f"{item_name}. {item_description}"
     messages = get_image_description_messages(promptable_text)
-    item_description = query_chat_model(messages, CHEAP_CHAT_MODEL_NAME, temperature=temperature)
+    item_description = query_chat_model(openai_client, messages, CHEAP_CHAT_MODEL_NAME, temperature=temperature)
     return item_description
 
 
@@ -140,6 +143,7 @@ async def process_response_json(first_item: str, second_item: str, operation: st
     if model_name in [CHEAP_CHAT_MODEL_NAME, EXPENSIVE_CHAT_MODEL_NAME]:
         # response will come in json format, with "name", "description", "visual_prompt"
         # so let's parse the response
+        print(f"JSON Response from combination: {response}")
         response = json.loads(response)
         item_name = response["name"]
         item_description = response["description"]
@@ -203,7 +207,7 @@ async def handle_alchemize(message):
                 await process_response_json(first_item, second_item, operation, alchemized_item, model_name)
             # handle image part
             print(f"Image item description: {visual_prompt}")
-            alchemy_image = generate_alchemy_picture(visual_prompt)
+            alchemy_image = await generate_alchemy_picture(openai_client, visual_prompt)
             # we can't send a raw image to discord.py
             with io.BytesIO() as image_binary:
                 alchemy_image.save(image_binary, 'PNG')
@@ -212,7 +216,7 @@ async def handle_alchemize(message):
                 await reply.add_reaction("✏️")
                 await reply.add_reaction("🎨")
         except Exception as e:
-            print(f"Error processing response: {e}")
+            print(f"Error processing response: {e} traceback: {e.__traceback__}")
             error_results = process_error_response(first_item, second_item, operation, str(e))
             await message.reply(error_results)
             raise e

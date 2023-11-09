@@ -21,7 +21,7 @@ REMBG_ENDPOINT = SERVER_IP + "rembg/"
 
 DEFAULT_REMBG_PAYLOAD = {
     "input_image": "",
-    "model": "silueta",
+    "model": "sam",
     "return_mask": False,
     "alpha_matting": False,
     "alpha_matting_foreground_threshold": 240,
@@ -102,8 +102,12 @@ DEFAULT_TEXT2IMG_PAYLOAD = {
 #
 # NEGATIVE_PROMPT_SUFFIX = "easynegative, ng_deepnegative_v1_75t, bad_prompt_version2, bad-artist"
 
-POSITIVE_PROMPT_SUFFIX = ", ((game icon))"
-NEGATIVE_PROMPT_SUFFIX = ", easynegative, ng_deepnegative_v1_75t, bad_prompt_version2, bad-artist"
+# POSITIVE_PROMPT_SUFFIX = ", ((game icon))"
+# NEGATIVE_PROMPT_SUFFIX = ", easynegative, ng_deepnegative_v1_75t, bad_prompt_version2, bad-artist"
+
+# we're using natural language for the DALL·E 3 api here
+POSITIVE_PROMPT_SUFFIX = "Game inventory asset, uncropped, transparent background."
+NEGATIVE_PROMPT_SUFFIX = ""
 
 ALCHEMITER_ASSET = Image.open("images/alchemiter_pad.png").convert("RGBA")
 
@@ -118,6 +122,23 @@ def generate_image(positive_prompt: str, negative_prompt: str) -> Tuple[Image, s
     response = requests.post(url=TEXT2IMG_ENDPOINT, json=payload)
     response_json = response.json()
     image_base64 = response_json["images"][0]
+    image = Image.open(io.BytesIO(base64.b64decode(image_base64.split(",", 1)[0])))
+    return image, image_base64
+
+
+async def generate_image_dalle3(client, positive_prompt: str, negative_prompt: str) -> Tuple[Image, str]:
+    # 1. using openAI's python api, contact the API with the prompt
+    # 2. return the image
+    response = await client.images.generate(
+        model="dall-e-3",
+        prompt=positive_prompt,
+        size="1024x1024",
+        quality="standard",
+        response_format='b64_json',
+        n=1,
+    )
+
+    image_base64 = response.data[0].b64_json
     image = Image.open(io.BytesIO(base64.b64decode(image_base64.split(",", 1)[0])))
     return image, image_base64
 
@@ -229,7 +250,7 @@ def assemble_final_image(image: Image) -> Image:
     return result
 
 
-def generate_alchemy_picture(result_item: str) -> Image:
+async def generate_alchemy_picture(client, result_item: str) -> Image:
     # add suffixes
     positive_prompt = result_item.lower() + POSITIVE_PROMPT_SUFFIX
     negative_prompt = NEGATIVE_PROMPT_SUFFIX
@@ -238,7 +259,8 @@ def generate_alchemy_picture(result_item: str) -> Image:
 
     # generate image
     print(f"Generating image with prompt: {prompt}")
-    image, image_base64 = generate_image(positive_prompt, negative_prompt)
+    # image, image_base64 = generate_image(positive_prompt, negative_prompt)
+    image, image_base64 = await generate_image_dalle3(client, positive_prompt, negative_prompt)
     image.save("output/1_alchemized_item_initial.png")
 
     # (OUTDATED) outpaint to avoid cropping
@@ -252,6 +274,18 @@ def generate_alchemy_picture(result_item: str) -> Image:
     # remove background
     image_no_bg, image_no_bg_base_64 = remove_background_from_picture(image_base64)
     image_no_bg.save("output/2_alchemized_item_no_bg.png")
+
+    # check if removing background led to a too transparent image, if more than 90% has reduced alpha, then we'll
+    # just use the image without removing the background
+    alpha = image_no_bg.getchannel("A")
+    alpha = alpha.histogram()
+    alpha = alpha[0] / sum(alpha)
+    min_alpha_threshold = 0.25
+    max_alpha_threshold = 0.75
+    print(f"Image: {result_item}")
+    print(f"Alpha: {alpha}")
+    if alpha < min_alpha_threshold or alpha > max_alpha_threshold:
+        image_no_bg = image
 
     # Assemble final image
     final_image = assemble_final_image(image_no_bg)
